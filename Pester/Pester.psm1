@@ -5,7 +5,7 @@ Resolve-Path $PSScriptRoot\Functions\*.ps1 |
 function Invoke-Pester($relative_path = ".", [switch] $EnableExit) {
     Reset-GlobalTestResults
     . "$PSScriptRoot\ObjectAdaptations\PesterFailure.ps1"
-    Update-TypeData -pre "$PSScriptRoot\ObjectAdaptations\types.ps1xml" -ErrorAction SilentlyContinue
+    #Update-TypeData -pre "$PSScriptRoot\ObjectAdaptations\types.ps1xml" -ErrorAction SilentlyContinue
 
     $fixtures_path = Resolve-Path $relative_path
     Write-Host Executing all tests in $fixtures_path

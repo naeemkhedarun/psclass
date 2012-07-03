@@ -10,6 +10,8 @@ function It($name, [ScriptBlock] $test)
     $start_line_position = $test.StartPosition.StartLine
     $test_file = $test.File
 
+    Update-TypeData -pre ".\Pester\ObjectAdaptations\types.ps1xml" 
+
     Setup-TestFunction
     . $TestDrive\temp.ps1
 
@@ -29,6 +31,7 @@ function It($name, [ScriptBlock] $test)
         Write-Host -ForegroundColor red $error_margin$error_margin"at line: $failure_line_number in  $test_file"
     }
 
+    Remove-TypeData -path ".\Pester\ObjectAdaptations\types.ps1xml" 
     #Stop-PesterConsoleTranscript
 }
 

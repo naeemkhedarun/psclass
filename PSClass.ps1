@@ -165,6 +165,86 @@ function New-PSClass
   $class
 }
 
+function Deserialize-PSClass ($deserialized)
+{
+  $class = $deserialized.Class
+
+  Attach-PSScriptMethod $class __LookupClassObject {
+    __PSClass-LookupClassObject $this $Args[0] $Args[1]
+  }
+
+  Attach-PSScriptMethod $class InvokeMethod {
+    __PSClass-InvokeMethod $this $Args[0] $Args[1] $Args[2]
+  }
+
+  Attach-PSScriptMethod $class InvokeProperty {
+    __PSClass-InvokePropertyMethod $this $Args[0] $Args[1] $Args[2] $Args[3]
+  }
+
+  $instance = new-object Management.Automation.PSObject
+
+  if ($class.BaseClass -ne $null)
+  {
+     $instance = __PSClass-AttachObject $class.BaseClass $instance
+  }
+  Attach-PSNote $instance Class $class
+
+  function AssurePrivate 
+  {
+    if ($instance.($class.privateName) -eq $null)
+    {
+      Attach-PSNote $instance ($class.privateName) (new-object Management.Automation.PSObject)
+      Attach-PSNote $instance.($class.privateName) __Parent
+    }
+	$instance.($class.privateName).__Parent = $instance
+  }
+
+  foreach ($note in $class.Notes)
+  {
+    if ($note.private)
+    {
+      AssurePrivate
+      Attach-PSNote $instance.($class.privateName) $note.Name $note.DefaultValue
+      $instance.__TestObject_Private.$($note.Name) = $deserialized.__TestObject_Private.$($note.Name) 
+    }
+    else
+    {
+      Attach-PSNote $instance $note.Name $note.DefaultValue
+    }
+  }
+
+  foreach ($key in $class.Methods.keys)
+  {
+    $method = $class.Methods[$key]
+    $targetObject = $instance
+  
+    # Private Methods are attached to the Private Object.
+    # However, when the script gets invoked, $this needs to be
+    # pointing to the instance object. $ObjectString resolves
+    # this for InvokeMethod
+    if ($method.private)
+    {
+        AssurePrivate
+        $targetObject = $instance.($class.privateName)
+        $ObjectString = '$this.__Parent'
+    }
+    else
+    {
+        $targetObject = $instance
+        $ObjectString = '$this'
+    }
+  
+    # The actual script is not attached to the object.  The Script attached to Object calls 
+    # InvokeMethod on the Class.  It looks up the script and executes it
+    $instanceScriptText = $ObjectString + '.Class.InvokeMethod( "' + $method.name + '", ' + $ObjectString + ', $Args )'
+    $instanceScript = $ExecutionContext.InvokeCommand.NewScriptBlock( $instanceScriptText )
+
+    Attach-PSScriptMethod $targetObject $method.Name $instanceScript  -override:$method.override
+  }
+
+  return $instance
+}
+
 # ===================================================================================
 # These helper Cmdlets should only be called by New-PSClass.  They exist to reduce
 # the amount of code attached to each PSClass object.  They rely on context
@@ -403,7 +483,14 @@ Error Position:
   $this = $object
   $private = $this.($Class.privateName)
 
-	$script.InvokeReturnAsIs( $parms )
+  if($script.GetType().Name -eq "string")
+  {
+    [ScriptBlock]::Create($script).InvokeReturnAsIs( $parms )
+  }
+  else
+  {
+    $script.InvokeReturnAsIs( $parms )
+  }
 }
 
 # ===================================================================================
