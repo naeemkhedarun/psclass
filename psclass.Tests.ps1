@@ -49,3 +49,20 @@ Describe "GivenAnObjectWithStaticNotes_AndANonDefaultValue_WhenDeserializing" {
         $deserialized.Class.myVariable.should.be(8)
     }
 }
+
+Describe "GivenAnObjectWithAConstructor_WhenDeserializing" {
+   $testClass = New-PSClass TestObject {
+        note executedTimes 0
+        constructor {
+            $this.executedTimes++;
+        }
+    }
+    $toSerialize = $testClass.New();
+
+    Export-Clixml -InputObject $toSerialize -Path .\object.xml
+    $deserialized = Deserialize-PSClass (Import-Clixml .\object.xml)
+
+    It "ItShouldDeserializeWithoutExecuting" {
+        $deserialized.executedTimes.should.be(1)
+    }
+}

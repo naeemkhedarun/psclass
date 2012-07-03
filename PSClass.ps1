@@ -170,27 +170,12 @@ function Deserialize-PSClass ($deserialized)
   $class = $deserialized.Class
 
   Attach-PSScriptMethod $class AttachTo {
-		function AttachAndInit($instance, [array]$parms)
+		function AttachAndInit($instance)
 		{
 			$instance = __PSClass-AttachObject $this $instance
-      __PSClass-Initialize $this $instance $parms
-			$instance
+			return $instance
 		}
-		$type = $Args[0].GetType()
-		[array]$parms = $Args[1]
-		if (($Args[0] -is [array]) -or ($Args[0] -is [System.Collections.ArrayList]))
-		{
-		  # This handles the attachment of an array of objects
-			$objects = $Args[0]
-			foreach($object in $objects)
-			{
-				$(AttachAndInit $object $parms) > $null
-			}
-		}
-		else
-	  {
-			AttachAndInit $Args[0] $parms
-		}
+		AttachAndInit $Args[0]
   }
 
   Attach-PSScriptMethod $class __LookupClassObject {
@@ -206,7 +191,7 @@ function Deserialize-PSClass ($deserialized)
   }
 
   $instance = new-object Management.Automation.PSObject
-  $instance = $class.AttachTo($instance, $Args)
+  $instance = $class.AttachTo($instance)
 
   foreach($private in $class.Notes | ? { $_.Private })
   {
