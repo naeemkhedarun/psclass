@@ -110,3 +110,36 @@ Describe "GivenAnObjectWithAPropertyWhichIsAPSObject_AndTheBackingFieldIsUpdated
         $deserialized.ReferencedObject.MyVariable.should.be(10)
     }
 }
+
+Describe "GivenAnObjectWithACollectionOfObjects_WhenDeserializing" {
+    $referencedObject = New-PSClass ReferencedObject {
+        note -private myVariable 0
+        property MyVariable { $private.myVariable }
+        method SetVariable {
+            param($val)
+            $private.myVariable = $val
+        }
+    }
+
+    $testClass = New-PSClass TestObject {
+        constructor {
+            param($refObjects)
+            $private.referencedObjects = $refObjects
+        }        
+
+        note -private referencedObjects @()
+        property ReferencedObjects { $private.referencedObjects }
+    }
+
+    $toSerialize = $testClass.New(@($referencedObject.New(), $referencedObject.New()));
+
+    Export-Clixml -InputObject $toSerialize -Path .\object.xml
+    $deserialized = Deserialize-PSClass (Import-Clixml .\object.xml)
+    $deserialized.ReferencedObjects[0].SetVariable(10)
+    $deserialized.ReferencedObjects[1].SetVariable(20)
+
+    It "TheObjectsInTheCollectionShouldBeDeserialized" {
+        $deserialized.ReferencedObjects[0].MyVariable.should.be(10)
+        $deserialized.ReferencedObjects[1].MyVariable.should.be(20)
+    }
+}

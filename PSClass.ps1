@@ -169,42 +169,53 @@ function Deserialize-PSClass ($deserialized)
 {
   $class = $deserialized.Class
 
-  Attach-PSScriptMethod $class AttachTo {
-		function AttachAndInit($instance)
-		{
-			$instance = __PSClass-AttachObject $this $instance
-			return $instance
-		}
-		AttachAndInit $Args[0]
-  }
+  if(-not $class.AttachTo)
+  {
+      Attach-PSScriptMethod $class AttachTo {
+		    function AttachAndInit($instance)
+		    {
+			    $instance = __PSClass-AttachObject $this $instance
+			    return $instance
+		    }
+		    AttachAndInit $Args[0]
+      }
 
-  Attach-PSScriptMethod $class __LookupClassObject {
-    __PSClass-LookupClassObject $this $Args[0] $Args[1]
-  }
+      Attach-PSScriptMethod $class __LookupClassObject {
+        __PSClass-LookupClassObject $this $Args[0] $Args[1]
+      }
 
-  Attach-PSScriptMethod $class InvokeMethod {
-    __PSClass-InvokeMethod $this $Args[0] $Args[1] $Args[2]
-  }
+      Attach-PSScriptMethod $class InvokeMethod {
+        __PSClass-InvokeMethod $this $Args[0] $Args[1] $Args[2]
+      }
 
-  Attach-PSScriptMethod $class InvokeProperty {
-    __PSClass-InvokePropertyMethod $this $Args[0] $Args[1] $Args[2] $Args[3]
+      Attach-PSScriptMethod $class InvokeProperty {
+        __PSClass-InvokePropertyMethod $this $Args[0] $Args[1] $Args[2] $Args[3]
+      }
   }
-
+  
   $instance = new-object Management.Automation.PSObject
   $instance = $class.AttachTo($instance)
 
   foreach($private in $class.Notes | ? { $_.Private })
   {
       $originalValue = $deserialized.$($deserialized.Class.PrivateName).$($private.Name)
-      if($originalValue.Class)
+      if($originalValue.Class -is [array])
+      {
+        $value = @()
+        for($i = 0; $i -lt $originalValue.Class.Count; $i++)
+        {
+            $value += @(Deserialize-PSClass $originalValue[$i])
+        }
+      }
+      elseif($originalValue.Class)
       {
         $value = Deserialize-PSClass $originalValue
       }
       else
       {
-        $value = $originalValue
+         $value = $originalValue
       }
-
+      
       $instance.$($instance.Class.PrivateName).$($private.Name) = $value
   }
 
