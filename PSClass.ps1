@@ -195,7 +195,17 @@ function Deserialize-PSClass ($deserialized)
 
   foreach($private in $class.Notes | ? { $_.Private })
   {
-      $instance.$($instance.Class.PrivateName).$($private.Name) = $deserialized.$($deserialized.Class.PrivateName).$($private.Name) 
+      $originalValue = $deserialized.$($deserialized.Class.PrivateName).$($private.Name)
+      if($originalValue.Class)
+      {
+        $value = Deserialize-PSClass $originalValue
+      }
+      else
+      {
+        $value = $originalValue
+      }
+
+      $instance.$($instance.Class.PrivateName).$($private.Name) = $value
   }
 
   foreach($public in $class.Notes | ? { -not $_.Private })
@@ -444,7 +454,7 @@ Error Position:
   $this = $object
   $private = $this.($Class.privateName)
 
-  if($script.GetType().Name -eq "string")
+  if($script -is [string])
   {
     [ScriptBlock]::Create($script).InvokeReturnAsIs( $parms )
   }
