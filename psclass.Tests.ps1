@@ -66,3 +66,16 @@ Describe "GivenAnObjectWithAConstructor_WhenDeserializing" {
         $deserialized.executedTimes.should.be(1)
     }
 }
+
+Describe "GivenAnObjectWithADifferentNameToTestObject_AndPrivateNotes_WhenDeserializing" {
+   $testClass = New-PSClass AnotherTestObject {
+        note -private executedTimes 0
+    }
+    $toSerialize = $testClass.New();
+
+    Export-Clixml -InputObject $toSerialize -Path .\object.xml
+
+    It "ItShouldDeserializeWithoutErroring" {
+        $deserialized = Deserialize-PSClass (Import-Clixml .\object.xml)
+    }
+}

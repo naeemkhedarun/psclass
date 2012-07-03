@@ -195,7 +195,7 @@ function Deserialize-PSClass ($deserialized)
 
   foreach($private in $class.Notes | ? { $_.Private })
   {
-      $instance.__TestObject_Private.$($private.Name) = $deserialized.__TestObject_Private.$($private.Name) 
+      $instance.$($instance.Class.PrivateName).$($private.Name) = $deserialized.$($deserialized.Class.PrivateName).$($private.Name) 
   }
 
   foreach($public in $class.Notes | ? { -not $_.Private })
