@@ -169,6 +169,30 @@ function Deserialize-PSClass ($deserialized)
 {
   $class = $deserialized.Class
 
+  Attach-PSScriptMethod $class AttachTo {
+		function AttachAndInit($instance, [array]$parms)
+		{
+			$instance = __PSClass-AttachObject $this $instance
+      __PSClass-Initialize $this $instance $parms
+			$instance
+		}
+		$type = $Args[0].GetType()
+		[array]$parms = $Args[1]
+		if (($Args[0] -is [array]) -or ($Args[0] -is [System.Collections.ArrayList]))
+		{
+		  # This handles the attachment of an array of objects
+			$objects = $Args[0]
+			foreach($object in $objects)
+			{
+				$(AttachAndInit $object $parms) > $null
+			}
+		}
+		else
+	  {
+			AttachAndInit $Args[0] $parms
+		}
+  }
+
   Attach-PSScriptMethod $class __LookupClassObject {
     __PSClass-LookupClassObject $this $Args[0] $Args[1]
   }
@@ -182,64 +206,16 @@ function Deserialize-PSClass ($deserialized)
   }
 
   $instance = new-object Management.Automation.PSObject
+  $instance = $class.AttachTo($instance, $Args)
 
-  if ($class.BaseClass -ne $null)
+  foreach($private in $class.Notes | ? { $_.Private })
   {
-     $instance = __PSClass-AttachObject $class.BaseClass $instance
-  }
-  Attach-PSNote $instance Class $class
-
-  function AssurePrivate 
-  {
-    if ($instance.($class.privateName) -eq $null)
-    {
-      Attach-PSNote $instance ($class.privateName) (new-object Management.Automation.PSObject)
-      Attach-PSNote $instance.($class.privateName) __Parent
-    }
-	$instance.($class.privateName).__Parent = $instance
+      $instance.__TestObject_Private.$($private.Name) = $deserialized.__TestObject_Private.$($private.Name) 
   }
 
-  foreach ($note in $class.Notes)
+  foreach($public in $class.Notes | ? { -not $_.Private })
   {
-    if ($note.private)
-    {
-      AssurePrivate
-      Attach-PSNote $instance.($class.privateName) $note.Name $note.DefaultValue
-      $instance.__TestObject_Private.$($note.Name) = $deserialized.__TestObject_Private.$($note.Name) 
-    }
-    else
-    {
-      Attach-PSNote $instance $note.Name $note.DefaultValue
-    }
-  }
-
-  foreach ($key in $class.Methods.keys)
-  {
-    $method = $class.Methods[$key]
-    $targetObject = $instance
-  
-    # Private Methods are attached to the Private Object.
-    # However, when the script gets invoked, $this needs to be
-    # pointing to the instance object. $ObjectString resolves
-    # this for InvokeMethod
-    if ($method.private)
-    {
-        AssurePrivate
-        $targetObject = $instance.($class.privateName)
-        $ObjectString = '$this.__Parent'
-    }
-    else
-    {
-        $targetObject = $instance
-        $ObjectString = '$this'
-    }
-  
-    # The actual script is not attached to the object.  The Script attached to Object calls 
-    # InvokeMethod on the Class.  It looks up the script and executes it
-    $instanceScriptText = $ObjectString + '.Class.InvokeMethod( "' + $method.name + '", ' + $ObjectString + ', $Args )'
-    $instanceScript = $ExecutionContext.InvokeCommand.NewScriptBlock( $instanceScriptText )
-
-    Attach-PSScriptMethod $targetObject $method.Name $instanceScript  -override:$method.override
+      $instance.$($public.Name) = $deserialized.$($public.Name) 
   }
 
   return $instance

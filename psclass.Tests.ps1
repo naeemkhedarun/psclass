@@ -15,29 +15,37 @@ Describe "GivenAnObjectWithMethods_WhenDeserializing" {
     Export-Clixml -InputObject $toSerialize -Path .\object.xml
     $deserialized = Deserialize-PSClass (Import-Clixml .\object.xml)
 
-    It "ItShouldStillHaveMethods" {
+        It "ItShouldStillHaveMethods" {
         $deserialized.getVariable().should.be(10)
     }
 }
 
-Describe "GivenAnObjectWithMethods_AndANonDefaultValue_WhenDeserializing" {
+Describe "GivenAnObjectWithPublicNotes_AndANonDefaultValue_WhenDeserializing" {
    $testClass = New-PSClass TestObject {
-        note -private myVariable 10
-        method getVariable {
-            return $private.myVariable
-        }
-        method setVariable {
-            param($newValue)
-            $private.myVariable = 8
-        }
+        note myVariable 10
     }
     $toSerialize = $testClass.New();
-    $toSerialize.setVariable(8);
+    $toSerialize.myVariable = 8;
 
     Export-Clixml -InputObject $toSerialize -Path .\object.xml
     $deserialized = Deserialize-PSClass (Import-Clixml .\object.xml)
 
     It "ItShouldStillHaveMethods" {
-        $deserialized.getVariable().should.be(8)
+        $deserialized.myVariable.should.be(8)
+    }
+}
+
+Describe "GivenAnObjectWithStaticNotes_AndANonDefaultValue_WhenDeserializing" {
+   $testClass = New-PSClass TestObject {
+        note -static myVariable 10
+    }
+    $toSerialize = $testClass.New();
+    $toSerialize.Class.myVariable = 8;
+
+    Export-Clixml -InputObject $toSerialize -Path .\object.xml
+    $deserialized = Deserialize-PSClass (Import-Clixml .\object.xml)
+
+    It "ItShouldStillHaveMethods" {
+        $deserialized.Class.myVariable.should.be(8)
     }
 }
